@@ -1,0 +1,41 @@
+---
+- name: Install Kubernetes on EC2 instances
+  hosts: all
+  become: true
+  tasks:
+    - name: Update package cache and upgrade packages
+      yum:
+        name: "*"
+        state: latest
+
+    # Install Kubernetes on master node
+    - name: Install Kubernetes components on master node
+      when: inventory_hostname == 'sulaiman-ec2-node-1' and ansible_distribution == 'Amazon'
+      block:
+        - name: Install Kubernetes tools on master node
+          yum:
+            name: "{{ item }}"
+            state: present
+          loop:
+            - kubeadm
+            - kubelet
+            - kubectl
+
+        - name: Initialize Kubernetes master node
+          command: kubeadm init
+
+    # Install Kubernetes on slave node
+    - name: Join worker nodes to the cluster
+      when: inventory_hostname in ['sulaiman-ec2-node-2', 'sulaiman-ec2-node-3'] and ansible_distribution == 'Amazon'
+      block:
+        - name: Install Kubernetes tools on worker nodes
+          yum:
+            name: "{{ item }}"
+            state: present
+          loop:
+            - kubeadm
+            - kubelet
+            - kubectl
+
+        - name: Join node to Kubernetes cluster
+          command: kubeadm join <master-node-ip>:<master-node-port> --token <token> --discovery-token-ca-cert-hash <hash>

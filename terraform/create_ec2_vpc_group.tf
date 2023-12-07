@@ -65,3 +65,13 @@ resource "aws_instance" "sulaiman_ec2" {
     Name = "sulaiman-ec2-node-${count.index + 1}"
   }
 }
+
+/* resource "aws_instance" "set_ansible" {
+  provisioner "remote-exec" {
+    inline = [
+      "sudo apt-get update",
+      "sudo apt-get install -y ansible",
+      "ansible-playbook -i localhost, ../ansible/kubernetes_install.yml"
+    ]
+  }
+} */
