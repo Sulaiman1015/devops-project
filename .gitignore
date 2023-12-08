@@ -1,4 +1,5 @@
-.terraform\*
+vendor/
+.terraform/*
 .terraform.lock.chl
 terraform.tfstate
 terraform/.terraform/providers/registry.terraform.io/hashicorp/aws/*/terraform-provider-aws_*_x5.exe
