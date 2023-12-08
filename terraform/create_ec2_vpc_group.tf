@@ -9,13 +9,22 @@ terraform {
 
 provider "aws" {
   region     = "eu-west-3"
-  access_key = "AKIAZ5YM6QKGFKCPPEVI"
-  secret_key = "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"
+}
+
+resource "tls_private_key" "mykey" {
+  algorithm = "RSA"
+  rsa_bits = 4096
 }
 
 resource "aws_key_pair" "myawskey" {
-  key_name   = "awskey"
-  public_key = "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAACAQCqE1hw4ThhehnvRjwRzSSeHxTlfkxI1VmqBoVMANkIhIYcb10bLqbkM/c4MbsiFdqajAmPNN4QmkoyBxhPgap0Qgn/ohVjsLQ+7zxi0BdnP7RC5KEpDFyN2gyBQ0q8jZk1nJgim061j5x262I3dg5YmPGaEf1ko77Nbx/yNci3mJkWC92vdZXUPG4mCiPP7fZgdhLcLXW8FJI1/9oK/V7Ja49nCO4SxGToJPQeKk6B4kU5nv37oQ5xJ+MkGLjblFebcCa07QabHuu5XQvKNi0C+Ru00dV0hj7+3Ku0KEjNescn3kpxZIDmV7gTGriVtQ9gzkYX41FqQpYIp4r80Xz/4BVN3oBLUJ5NQQNpEui1GCkAYtPLo88pfTaUdfYzrF25+F6n2V/I9ICKVW8qckIQsWcNM3RegeMJpaPYjr9akvH6m4n0HwJJFQcbSzgTn6DoJ8+nAqodsruOa6V8beIO4BgYn7hgb/0vWCzpcv0k9oVKacbvXjdKLErjgHzzp8khxTEWfwAaPmE2ahWv7ZcN8itH6L4RTG6eS7fvmcdWv6gcd5ueuk1hm61Fm8mEBuNCiJqGVVB5CwjEGxRUAtoSdK3Qp2aEEaz91SE+ZEtDMXa2NWpwfp/sqUxBBJImEFwU9VdzfCoe0BdLkBs0sr+p7n8582sv92dBaA68lziB/Q== sulaiman@master-node"
+    key_name = "macle"
+    public_key = tls_private_key.mykey.public_key_openssh
+}
+
+resource "local_file" "mykeyfile" {
+    content = tls_private_key.mykey.private_key_pem
+    filename = "${path.module}/awsdevops.pem"
+    file_permission = "0600"
 }
 
 resource "aws_vpc" "sulaiman_vpc" {
