@@ -19,7 +19,7 @@ resource "aws_key_pair" "myawskey" {
 }
 
 resource "aws_vpc" "sulaiman_vpc" {
-  cidr_block = "10.0.0.0/16"
+  cidr_block = "192.168.0.0/16"
   instance_tenancy = "default"
 
   tags = {
@@ -27,9 +27,9 @@ resource "aws_vpc" "sulaiman_vpc" {
   }
 }
 
-resource "aws_subnet" "selected_subnet" {
+resource "aws_subnet" "sulaiman_subnet" {
   vpc_id     = aws_vpc.sulaiman_vpc.id
-  cidr_block = "10.0.1.0/24"
+  cidr_block = "192.168.1.0/24"
 }
 
 resource "aws_security_group" "sulaiman_sg" {
@@ -52,11 +52,41 @@ resource "aws_security_group" "sulaiman_sg" {
   }
 }
 
+# Setup Internet gateway
+resource "aws_internet_gateway" "sulaiman_igw" {
+  vpc_id = aws_vpc.sulaiman_vpc.id
+}
+
+# Setup Internet router
+resource "aws_route_table" "sulaiman_route_table" {
+  vpc_id = aws_vpc.sulaiman_vpc.id
+
+  route {
+    cidr_block = "192.168.1.0/24"
+    gateway_id = aws_internet_gateway.sulaiman_igw.id
+  }
+
+  route {
+    ipv6_cidr_block        = "::/0"
+  }
+
+  tags = {
+    Name = "sulaiman_route_table"
+  }
+}
+
+resource "aws_route" "sulaiman_route" {
+  route_table_id            = resource.aws_route_table.sulaiman_route_table.id
+  destination_cidr_block = "0.0.0.0/0"
+  gateway_id             = aws_internet_gateway.sulaiman_igw.id
+}
+
 resource "aws_instance" "sulaiman_ec2" {
   ami             = "ami-0302f42a44bf53a45"
   instance_type   = "t2.micro"
-  subnet_id       = resource.aws_subnet.selected_subnet.id
+  subnet_id       = resource.aws_subnet.sulaiman_subnet.id
   security_groups = [aws_security_group.sulaiman_sg.id]
+  associate_public_ip_address = true
   key_name        = aws_key_pair.myawskey.key_name
 
   count = 3
@@ -65,6 +95,7 @@ resource "aws_instance" "sulaiman_ec2" {
     Name = "sulaiman-ec2-node-${count.index + 1}"
   }
 }
+
 
 /* resource "aws_instance" "set_ansible" {
   provisioner "remote-exec" {

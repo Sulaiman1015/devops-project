@@ -1,0 +1,72 @@
+---
+- name: Install Kubernetes and Docker on EC2 instances
+  hosts: all
+  become: true
+  tasks:
+    - name: Update package cache and upgrade packages
+      yum:
+        name: "*"
+        state: latest
+
+    # Install Docker on all nodes
+    - name: Install Docker and related packages
+      yum:
+        name: "{{ item }}"
+        state: present
+      loop:
+        - docker
+        - docker-ce
+        - docker-ce-cli
+        - containerd.io
+
+    - name: Start Docker service and enable on boot
+      service:
+        name: docker
+        state: started
+        enabled: yes
+
+    # Install Kubernetes tools on master node
+    - name: Install Kubernetes components on master node
+      when: inventory_hostname == 'sulaiman-ec2-node-1' and ansible_distribution == 'Amazon'
+      block:
+        - name: Install Kubernetes tools on master node
+          yum:
+            name: "{{ item }}"
+            state: present
+          loop:
+            - kubeadm
+            - kubelet
+            - kubectl
+
+        - name: Initialize Kubernetes master node
+          command: kubeadm init
+          args:
+            creates: /etc/kubernetes/admin.conf
+          register: kubeadm_output
+          ignore_errors: true
+
+        - name: Save Kubernetes master node join command
+          when: kubeadm_output is succeeded
+          shell: "echo '{{ kubeadm_output.stdout_lines[0] }}' > /tmp/kube_join_command.sh"
+
+    # Install Kubernetes tools on worker nodes and join them to cluster
+    - name: Join worker nodes to the cluster
+      when: inventory_hostname in ['sulaiman-ec2-node-2', 'sulaiman-ec2-node-3'] and ansible_distribution == 'Amazon'
+      block:
+        - name: Install Kubernetes tools on worker nodes
+          yum:
+            name: "{{ item }}"
+            state: present
+          loop:
+            - kubeadm
+            - kubelet
+            - kubectl
+
+        - name: Retrieve Kubernetes master node join command
+          slurp:
+            src: /tmp/kube_join_command.sh
+          register: kube_join_command
+
+        - name: Join node to Kubernetes cluster
+          command: "{{ kube_join_command.content | b64decode }}"
+          ignore_errors: true
