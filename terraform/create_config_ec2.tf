@@ -23,7 +23,7 @@ resource "aws_key_pair" "myawskey" {
 
 resource "local_file" "mykeyfile" {
   content          = tls_private_key.mypem.private_key_pem
-  filename         = "${path.module}/awsdevops.pem"
+  filename         = "${path.module}/awskey.pem"
   file_permission  = "0600"
 }
 
@@ -90,7 +90,7 @@ resource "aws_route" "sulaiman_route" {
   gateway_id                = aws_internet_gateway.sulaiman_igw.id
 }
 
-resource "aws_instance" "sulaiman_ec2" {
+resource "aws_instance" "control_node" {
   ami                             = "ami-0302f42a44bf53a45"
   instance_type                   = "t2.micro"
   subnet_id                       = aws_subnet.sulaiman_subnet.id
@@ -98,9 +98,24 @@ resource "aws_instance" "sulaiman_ec2" {
   associate_public_ip_address     = true
   key_name                        = aws_key_pair.myawskey.key_name
 
-  count = 3
+  tags = {
+    Name = "sulaiman-control-node"
+    Type = "control-node"
+  }
+}
+
+resource "aws_instance" "managed_node" {
+  ami                             = "ami-0302f42a44bf53a45"
+  instance_type                   = "t2.micro"
+  subnet_id                       = aws_subnet.sulaiman_subnet.id
+  security_groups                 = [aws_security_group.sulaiman_sg.id]
+  associate_public_ip_address     = true
+  key_name                        = aws_key_pair.myawskey.key_name
+
+  count = 2
 
   tags = {
-    Name = "sulaiman-ec2-node-${count.index + 1}"
+    Name = "sulaiman-managed-node-${count.index + 1}"
+    Type = "managed-node"
   }
 }
