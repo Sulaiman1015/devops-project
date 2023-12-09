@@ -10,14 +10,7 @@
 
     # Install Docker on all nodes
     - name: Install Docker and related packages
-      yum:
-        name: "{{ item }}"
-        state: present
-      loop:
-        - docker
-        - docker-ce
-        - docker-ce-cli
-        - containerd.io
+      shell: amazon-linux-extras install docker
 
     - name: Start Docker service and enable on boot
       service:
@@ -25,11 +18,14 @@
         state: started
         enabled: yes
 
+    - name: Add ec2-user to docker group
+      shell: usermod -a -G docker ec2-user
+
     # Install Kubernetes tools on master node
-    - name: Install Kubernetes components on master node
-      when: inventory_hostname == 'sulaiman-ec2-node-1' and ansible_distribution == 'Amazon'
+    - name: Install Kubernetes components on all nodes
+      when: Type == "control-node"
       block:
-        - name: Install Kubernetes tools on master node
+        - name: Install Kubernetes tools
           yum:
             name: "{{ item }}"
             state: present
@@ -38,7 +34,7 @@
             - kubelet
             - kubectl
 
-        - name: Initialize Kubernetes master node
+        - name: Initialize Kubernetes control node
           command: kubeadm init
           args:
             creates: /etc/kubernetes/admin.conf
@@ -51,9 +47,9 @@
 
     # Install Kubernetes tools on worker nodes and join them to cluster
     - name: Join worker nodes to the cluster
-      when: inventory_hostname in ['sulaiman-ec2-node-2', 'sulaiman-ec2-node-3'] and ansible_distribution == 'Amazon'
+      when: Type == "managed-node"
       block:
-        - name: Install Kubernetes tools on worker nodes
+        - name: Install Kubernetes tools on managed nodes
           yum:
             name: "{{ item }}"
             state: present

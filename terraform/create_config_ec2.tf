@@ -39,27 +39,44 @@ resource "aws_vpc" "sulaiman_vpc" {
 resource "aws_subnet" "sulaiman_subnet" {
   vpc_id      = aws_vpc.sulaiman_vpc.id
   cidr_block  = "192.168.1.0/24"
+  map_public_ip_on_launch = true
 }
 
 resource "aws_security_group" "sulaiman_sg" {
   name        = "sulaiman_ssh"
   vpc_id      = aws_vpc.sulaiman_vpc.id
+  description = "Allow SSH access"
 
-  ingress {
-    from_port   = 22
-    to_port     = 22
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
-    description = "allow SSH from anywhere"
-  }
+  ingress = [{
+    description      = "ingress port 22 allow"
+    from_port        = 22
+    to_port          = 22
+    protocol         = "tcp"
+    cidr_blocks      = ["0.0.0.0/0",] # Your current ip, or change to 0.0.0.0/0 to allow all
+    self             = true
+    ipv6_cidr_blocks = []
+    prefix_list_ids  = []
+    security_groups  = []
+  }]
 
-  egress {
-    from_port   = 0
-    to_port     = 0
-    protocol    = "-1"
-    cidr_blocks = ["0.0.0.0/0"]
+  egress = [{
+    cidr_blocks      = ["0.0.0.0/0"]
+    description      = "egress allow all"
+    from_port        = 0
+    to_port          = 0
+    protocol         = "-1"
+    self             = false
+    ipv6_cidr_blocks = []
+    prefix_list_ids  = []
+    security_groups  = []
+  }]
+
+
+  tags = {
+    Name = "sulaiman_ssh_security_group"
   }
 }
+
 
 # Setup Internet gateway
 resource "aws_internet_gateway" "sulaiman_igw" {
