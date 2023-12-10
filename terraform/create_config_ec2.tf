@@ -29,7 +29,7 @@ resource "local_file" "pem_file" {
 }
 
 locals {
-  ssh_key_name = "MyawsKey"
+  ssh_key_name = "myawsKey"
 }
 
 resource "aws_vpc" "sulaiman_vpc" {
@@ -43,7 +43,7 @@ resource "aws_vpc" "sulaiman_vpc" {
 resource "aws_subnet" "sulaiman_public_subnet" {
   vpc_id      = aws_vpc.sulaiman_vpc.id
   cidr_block  = "10.0.1.0/24"
-  availability_zone = "3a"
+  availability_zone = "eu-west-3a"
 
   tags = {
     Name = "sulaiman_pub_subnet"
@@ -53,52 +53,71 @@ resource "aws_subnet" "sulaiman_public_subnet" {
 resource "aws_subnet" "sulaiman_private_subnet" {
   vpc_id      = aws_vpc.sulaiman_vpc.id
   cidr_block  = "10.0.2.0/24"
-  availability_zone = "3a"
+  availability_zone = "eu-west-3a"
 
   tags = {
     Name = "sulaiman_private_subnet"
   }
 }
 
-resource "aws_security_group" "sulaiman_sg" {
+resource "aws_security_group" "sulaiman_web_sg" {
   name        = "sulaiman_ssh_http"
   vpc_id      = aws_vpc.sulaiman_vpc.id
-  description = "Allow SSH and HTTP access"
+  description = "Allow SSH access"
 
-  # Rule allowing HTTP (port 80) access from anywhere for control node
   ingress {
     from_port   = 80
     to_port     = 80
     protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]  # You can restrict this to a specific IP range if needed
-    description = "HTTP from any IP for control node"
-  }
-
-  # Rule allowing SSH (port 22) access from anywhere for all nodes
-  ingress {
-    from_port   = 22
-    to_port     = 22
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]  # You can restrict this to a specific IP range if needed
-    description = "SSH from any IP for all nodes"
-  }
-
-  # Rule allowing all outbound traffic from all nodes
-  egress {
-    from_port   = 0
-    to_port     = 0
-    protocol    = "-1"
     cidr_blocks = ["0.0.0.0/0"]
-    description = "Allow all outbound traffic"
   }
+
+  ingress {
+        from_port = 22
+        to_port = 22
+        protocol = "tcp"
+        cidr_blocks = [ "0.0.0.0/0" ]
+        description = "SSH from any ip"
+    }
+
+    egress {
+        from_port = 0
+        to_port = 0
+        protocol = "-1"
+        cidr_blocks = [ "0.0.0.0/0" ]
+    }
+
 
   tags = {
-    Name = "sulaiman_sg"
+    Name = "sulaiman_web_sg"
   }
 }
 
+resource "aws_security_group" "sulaiman_ssh_sg" {
+  name        = "sulaiman_ssh"
+  vpc_id      = aws_vpc.sulaiman_vpc.id
+  description = "Allow SSH access"
+
+ ingress {
+        from_port = 22
+        to_port = 22
+        protocol = "tcp"
+        cidr_blocks = [ "0.0.0.0/0" ]
+        description = "SSH from any ip"
+    }
+
+    egress {
+        from_port = 0
+        to_port = 0
+        protocol = "-1"
+        cidr_blocks = [ "0.0.0.0/0" ]
+    }
 
 
+  tags = {
+    Name = "sulaiman_ssh_sg"
+  }
+}
 
 # Setup Internet gateway
 resource "aws_internet_gateway" "sulaiman_igw" {
@@ -129,7 +148,7 @@ resource "aws_route_table" "sulaiman_public_rt" {
 }
 
 resource "aws_route_table_association" "sulaiman_public_rta" {
-  subnet_id      = aws_subnet.sulaiman_public_subnet
+  subnet_id      = aws_subnet.sulaiman_public_subnet.id
   route_table_id = aws_route_table.sulaiman_public_rt.id
 }
 
@@ -162,8 +181,8 @@ resource "aws_instance" "managed_node" {
   instance_type                   = "t2.micro"
   key_name                        = aws_key_pair.myawskey.key_name
 
-  subnet_id                       = aws_subnet.sulaiman_private_subnet
-  vpc_security_group_ids          = [aws_security_group.sulaiman_private_sg]
+  subnet_id                       = aws_subnet.sulaiman_private_subnet.id
+  vpc_security_group_ids          = [aws_security_group.sulaiman_ssh_sg.id]
   associate_public_ip_address     = false
   count = 2
 
