@@ -1,4 +1,3 @@
----
 - name: Install Kubernetes and Docker on EC2 instances
   hosts: all
   become: true
@@ -22,8 +21,8 @@
       shell: usermod -a -G docker ec2-user
 
     # Install Kubernetes tools on master node
-    - name: Install Kubernetes components on all nodes
-      when: Type == "control-node"
+    - name: Install Kubernetes components on control node
+      when: "'control-node' in group_names"
       block:
         - name: Install Kubernetes tools
           yum:
@@ -47,7 +46,7 @@
 
     # Install Kubernetes tools on worker nodes and join them to cluster
     - name: Join worker nodes to the cluster
-      when: Type == "managed-node"
+      when: "'managed-node' in group_names"
       block:
         - name: Install Kubernetes tools on managed nodes
           yum:
