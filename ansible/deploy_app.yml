@@ -1,0 +1,71 @@
+---
+- name: Deploy microservices to Docker containers, clone project repository, and deploy to Kubernetes
+  hosts: managed-nodes
+  become: true
+  tasks:
+    - name: Clone project repository
+      git:
+        repo: https://github.com/Mossbaddi/Projet_fil_rouge.git
+        dest: "/opt/app/Projet_fil_rouge"
+        version: master
+        clone: yes
+        force: yes
+        depth: 1
+
+    - name: Copy microservices source code and images to managed nodes
+      copy:
+        src: "{{ item.src }}"
+        dest: "/opt/app/{{ item.dest }}"
+        owner: "{{ item.owner }}"
+        group: "{{ item.group }}"
+        mode: "{{ item.mode }}"
+      with_items:
+        - { src: "/opt/app/Projet_fil_rouge/client", dest: "client", owner: "devops", group: "devops", mode: "0755" }
+        - { src: "/opt/app/Projet_fil_rouge/posts", dest: "posts", owner: "devops", group: "devops", mode: "0755" }
+        - { src: "/opt/app/Projet_fil_rouge/query", dest: "query", owner: "devops", group: "devops", mode: "0755" }
+        - { src: "/opt/app/Projet_fil_rouge/comments", dest: "comments", owner: "devops", group: "devops", mode: "0755" }
+        - { src: "/opt/app/Projet_fil_rouge/moderation", dest: "moderation", owner: "devops", group: "devops", mode: "0755" }
+        - { src: "/opt/app/Projet_fil_rouge/event-bus", dest: "event-bus", owner: "devops", group: "devops", mode: "0755" }
+
+    - name: Install dependencies and build Docker images for each service
+      shell: |
+        cd /opt/app/{{ item.service }}
+        npm install
+        docker build -t {{ item.image_name }} .
+      with_items:
+        - { service: "client", image_name: "client" }
+        - { service: "posts", image_name: "posts" }
+        - { service: "query", image_name: "query" }
+        - { service: "comments", image_name: "comments" }
+        - { service: "moderation", image_name: "moderation" }
+        - { service: "event-bus", image_name: "event-bus" }
+
+    - name: Pull Docker images
+      docker_image:
+        name: "{{ item.image }}"
+      with_items:
+        - { image: "service1_image" } 
+        - { image: "service2_image" }  
+        - { image: "service3_image" }  
+        - { image: "service4_image" }  
+        - { image: "service5_image" }  
+        - { image: "service6_image" }  
+
+    - name: Run Docker containers for microservices
+      docker_container:
+        name: "{{ item.name }}"
+        image: "{{ item.image }}"
+        ports:
+          - "{{ item.port }}:{{ item.container_port }}/tcp"
+        state: started
+      when: "'devops-managed-node-1' in inventory_hostname and item.image in ['service1_image', 'service2_image', 'service3_image'] or 'devops-managed-node-2' in inventory_hostname and item.image not in ['service1_image', 'service2_image', 'service3_image']"
+      with_items:
+        - { name: "client-srv", image: "service1_image", port: 8001, container_port: 3000 }  
+        - { name: "posts-clusterip-srv", image: "service2_image", port: 8002, container_port: 4000 }  
+        - { name: "query-srv", image: "service3_image", port: 8003, container_port: 4002 }  
+        - { name: "comments-srv", image: "service4_image", port: 8004, container_port: 4001 }  
+        - { name: "moderation-srv", image: "service5_image", port: 8005, container_port: 4003 }  
+        - { name: "event-bus-srv", image: "service6_image", port: 8006, container_port: 4005 }  
+    
+    - name: Deploy services on Kubernetes
+      command: kubectl apply -f /"/opt/app/Projet_fil_rouge/kubernetes/directory

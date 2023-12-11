@@ -1,0 +1,48 @@
+---
+- name: Install Kubernetes and Docker on EC2 instances
+  hosts: all
+  become: true
+  tasks:
+    - name: Update package cache and upgrade packages
+      yum:
+        name: "*"
+        state: latest
+
+    # Install Docker on all nodes
+    - name: Install Docker
+      command: amazon-linux-extras install docker -y
+
+    - name: Start Docker service and enable on boot
+      service:
+        name: docker
+        state: started
+        enabled: yes
+
+    - name: Add devops to docker group
+      user:
+        name: devops
+        groups: docker
+        append: yes
+
+    # Install Minikube and kubectl on control node
+    - name: Install Minikube and kubectl on control node
+      block:
+        - name: Download Minikube
+          get_url:
+            url: https://storage.googleapis.com/minikube/releases/latest/minikube-linux-amd64
+            dest: /usr/local/bin/minikube
+            mode: 0755
+          when: "'control-node' in group_names"
+
+        - name: Set executable permissions for Minikube
+          file:
+            path: /usr/local/bin/minikube
+            mode: 0755
+          when: "'control-node' in group_names" 
+          become: true
+
+        - name: Install kubectl on control node
+          command: curl -LO https://storage.googleapis.com/kubernetes-release/release/$(curl -s https://storage.googleapis.com/kubernetes-release/release/stable.txt)/bin/linux/amd64/kubectl
+          args:
+            chdir: /usr/local/bin/
+          when: "'control-node' in group_names"
